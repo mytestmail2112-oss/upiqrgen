@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>UPI QR • GPay Style</title>
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+      <link rel="manifest" href="manifest.json">
+      <meta name="theme-color" content="#0F9D58">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+      <style>
+         :root{
+         --outer-bg:#f2f5f9;
+         --card-bg:#fff;
+         --brand:#0F9D58;
+         --text:#1f2937;
+         --muted:#6b7280;
+         }
+         *{box-sizing:border-box}
+         body{margin:0;padding:26px;font-family:'Roboto',sans-serif;background:var(--outer-bg);color:var(--text);text-align:center}
+         h2{margin:0 0 14px;font-weight:600}
+         .inputs{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+         .inputs input[type="text"], .inputs input[type="number"]{
+         padding:10px 12px;border:1px solid #e6e9ee;border-radius:10px;min-width:220px;background:#fff;
+         }
+         .file-field{display:inline-block;background:#fff;border:1px dashed #dbe6ef;border-radius:10px;padding:8px 10px;font-size:13px;color:#374151}
+         .btn{background:var(--brand);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:600;cursor:pointer;box-shadow:0 6px 14px rgba(15,157,88,.18)}
+         .btn.secondary{background:#111827}
+         /* OUTER CARD */
+         .card{width:300px;max-width:92vw;margin:18px auto;background:var(--outer-bg);border-radius:22px;box-shadow:0 8px 26px rgba(0,0,0,.08);padding:18px 16px}
+         /* Profile row */
+         .profile{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px}
+         .profile img{width:40px;height:40px;border-radius:50%;object-fit:cover}
+         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap');
+         .profile .name {
+         font-family: 'Poppins', 'Roboto', sans-serif;
+         font-size: 22px;
+         font-weight: 600;
+         letter-spacing: 0.5px;
+         color: #111827;
+         }
+         /* INNER white frame */
+         .inner {
+         background: #ffffff;
+         border-radius: 18px;
+         padding: 20px 16px;
+         margin: 12px auto;
+         width: calc(100% - 20px);
+         box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+         display: flex;
+         flex-direction: column;
+         align-items: center;
+         }
+         /* QR wrapper */
+         #qrcode-wrap{width:100%;display:flex;align-items:center;justify-content:center;margin:6px 0}
+         #qrcode-wrap img, #qrcode-wrap canvas{display:block; margin:0 auto; width:220px; height:220px; border-radius:12px}
+         .upi{margin-top:12px;font-size:13px;font-weight:400;color:#374151;text-align:center}
+         .amount{margin-top:4px;font-size:12px;color:#6b7280;font-weight:400;text-align:center}
+         .footer{margin-top:14px;font-size:15px;color:#6b7280}
+         .actions{margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+         .note{font-size:12px;color:#6b7280;margin-top:8px}
+      </style>
+   </head>
+   <body>
+      <h2>💳 Google Pay Style UPI QR – by shanty</h2>
+      <div class="inputs">
+         <input id="name" type="text" placeholder="Name (e.g. FirePhoenix)" />
+         <input id="upi" type="text" placeholder="UPI ID (e.g. 6.singh.9@fam)" />
+         <input id="amount" type="number" placeholder="Amount (₹)" />
+         <input id="note" type="text" placeholder="Upi Note (optional)" />
+         <input id="desc" type="text" placeholder="Description" />
+      </div>
+      <div class="inputs">
+         <input id="profileUrl" type="text" placeholder="Profile Image URL (optional)" />
+         <input id="logoUrl" type="text" placeholder="Center Logo URL (optional)" />
+         <label class="file-field">Upload Profile <input id="profileUpload" type="file" accept="image/*" style="display:none"></label>
+         <label class="file-field">Upload Center Logo <input id="logoUpload" type="file" accept="image/*" style="display:none"></label>
+      </div>
+      <div style="margin-bottom:8px">
+         <button class="btn" onclick="generate()">Generate QR</button>
+      </div>
+      <!-- PREVIEW CARD -->
+      <div id="card" class="card" style="display:none;">
+         <div class="profile">
+            <img id="avatar" alt="Profile" src="" />
+            <div class="name" id="nameShow"></div>
+         </div>
+         <div class="inner">
+            <div id="qrcode-wrap">
+               <div id="qrcode"></div>
+            </div>
+            <div class="upi" id="upiShow"></div>
+            <div class="amount" id="amountShow"></div>
+         </div>
+         <div class="footer" id="descShow">Description</div>
+      </div>
+      <div class="actions" id="dlWrap" style="display:none">
+         <button class="btn" onclick="downloadPNG()">📥 Download Card</button>
+         <button class="btn secondary" onclick="downloadOnlyQR()">⬇️ Download Only QR</button>
+      </div>
+      <div class="note">Tip: if remote images are blocked by CORS, use the upload buttons (choose local file).</div>
+      <script>
+         const DEFAULT_PROFILE = "https://i.ibb.co/N2QLQ9Fc/profile.png";  // Profile ke liye
+         const DEFAULT_QR_LOGO = "https://i.ibb.co/d4zsSX2H/bhim-app-icon.png";      // QR center logo ke liye
+         
+         let profileImgURL = DEFAULT_PROFILE;
+         let qrLogoURL = DEFAULT_QR_LOGO;
+           let lastQrDataURL = null; // dataURL of final QR image (with center logo)
+         
+           // file upload handlers (label clicks)
+           document.querySelectorAll('.file-field input[type=file]').forEach(inp=>{
+             inp.addEventListener('change', (e)=>{
+               const f = e.target.files[0];
+               if(!f) return;
+               const reader = new FileReader();
+               reader.onload = ev=>{
+                 if(inp.id === 'profileUpload') profileImgURL = ev.target.result;
+                 else qrLogoURL = ev.target.result;
+               };
+               reader.readAsDataURL(f);
+             });
+           });
+         
+           // helper: convert remote URL -> base64 (if CORS allows)
+           async function urlToBase64(url){
+             try{
+               const res = await fetch(url, {mode:'cors'});
+               if(!res.ok) throw new Error("fetch failed");
+               const blob = await res.blob();
+               return await new Promise((resolve,reject)=>{
+                 const r = new FileReader();
+                 r.onload = ()=>resolve(r.result);
+                 r.onerror = reject;
+                 r.readAsDataURL(blob);
+               });
+             }catch(err){
+               // CORS blocked or fetch failed
+               alert("Remote image blocked by CORS or unavailable: " + url + "\nPlease upload local file instead.");
+               return null;
+             }
+           }
+         
+           function safeMoney(v){
+             const n = Number(v); if(isNaN(n)) return "";
+             return n.toLocaleString('en-IN',{style:'currency',currency:'INR'});
+           }
+         
+           async function generate(){
+             const name = document.getElementById('name').value.trim();
+             const upi = document.getElementById('upi').value.trim();
+             const amount = document.getElementById('amount').value.trim();
+         	const note = document.getElementById('note').value.trim();
+         	const desc = document.getElementById('desc').value.trim();
+         document.getElementById('descShow').textContent = desc || "Scan to pay with any UPI app";
+         
+             const profileUrl = document.getElementById('profileUrl').value.trim();
+             const logoUrl = document.getElementById('logoUrl').value.trim();
+         
+             if(!name || !upi || !amount){ alert("Enter Name, UPI ID, Amount"); return; }
+         
+             // Try convert remote URLs to base64 if provided
+             if(profileUrl){
+               const b = await urlToBase64(profileUrl);
+               if(b) profileImgURL = b;
+               else profileImgURL = DEFAULT_IMG;
+             }
+             if(logoUrl){
+               const b2 = await urlToBase64(logoUrl);
+               if(b2) qrLogoURL = b2;
+               else qrLogoURL = DEFAULT_IMG;
+             }
+         
+             // Populate text & avatar in DOM preview
+             document.getElementById('nameShow').textContent = name;
+             document.getElementById('upiShow').textContent = "UPI ID: " + upi;
+             document.getElementById('amountShow').textContent = "Amount: " + safeMoney(amount);
+             document.getElementById('avatar').src = profileImgURL || DEFAULT_IMG;
+         
+             // Build UPI link for QR
+           const upiUrl = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(name)}&am=${encodeURIComponent(amount)}&cu=INR${note ? `&tn=${encodeURIComponent(note)}` : ''}`;
+         
+         
+         
+             // Generate QR (temp)
+             const tmp = document.createElement('div');
+             new QRCode(tmp, { text: upiUrl, width: 1000, height: 1000, correctLevel: QRCode.CorrectLevel.H });
+         
+             // wait small time for QR to render
+             await new Promise(r=>setTimeout(r,160));
+         
+             const qrImgOrCanvas = tmp.querySelector('canvas');  // always canvas = sharp
+             if(!qrImgOrCanvas){ alert("QR generation failed"); return; }
+         
+             // Compose final QR canvas (draw QR + white circular pad + round center logo)
+             const qrCanvas = document.createElement('canvas');
+         	const SIZE = 1000;  // QR HD render hoga (1000px)
+         	qrCanvas.width = SIZE;
+         	qrCanvas.height = SIZE;
+         
+             const ctx = qrCanvas.getContext('2d');
+         
+             // draw qr into qrCanvas
+             if(qrImgOrCanvas.tagName.toLowerCase() === 'img'){
+               ctx.drawImage(qrImgOrCanvas, 0, 0, SIZE, SIZE);
+             } else {
+               ctx.drawImage(qrImgOrCanvas, 0, 0, SIZE, SIZE);
+             }
+         
+             // draw white circular background for logo
+             // Choose your desired logo size percentage
+         const logoSize = Math.round(SIZE * 0.15); // 15% of QR canvas size (aur bhi kam/bada kar sakte ho)
+             const pad = Math.round(logoSize * 0.12);
+         const cx = SIZE/2, cy = SIZE/2;
+         ctx.fillStyle = '#fff';
+         ctx.beginPath();
+         ctx.arc(cx, cy, (logoSize/2) + pad, 0, Math.PI*2);
+         ctx.fill();
+         
+         // draw logo (circle clip and render)
+         const logoImg = new Image();
+         logoImg.crossOrigin = "anonymous";
+         logoImg.onload = ()=>{
+           ctx.save();
+           ctx.beginPath();
+           ctx.arc(cx, cy, logoSize/2, 0, Math.PI*2);
+           ctx.closePath();
+           ctx.clip();
+           ctx.drawImage(logoImg, cx - (logoSize/2), cy - (logoSize/2), logoSize, logoSize);
+           ctx.restore();
+         
+         
+               // convert to dataURL and show in preview as img (not canvas) — this helps html2canvas capture correctly
+         const dataURL = qrCanvas.toDataURL('image/png');
+         lastQrDataURL = dataURL;
+         const finalImg = new Image();
+         finalImg.src = dataURL;
+         
+         // 👇 Ye hi chhote preview ka fix hai
+         finalImg.style.width = '190px';   
+         finalImg.style.height = '190px';  
+         finalImg.style.borderRadius = '0px';
+         finalImg.alt = 'QR';
+         
+         const qwrap = document.getElementById('qrcode-wrap');
+         qwrap.innerHTML = '';
+         qwrap.appendChild(finalImg);
+         
+         
+         
+               // show preview & download
+               document.getElementById('card').style.display = 'block';
+               document.getElementById('dlWrap').style.display = 'flex';
+             };
+             logoImg.onerror = ()=>{
+               // if logo fails, still show qr without logo
+               const dataURL = qrCanvas.toDataURL('image/png');
+               lastQrDataURL = dataURL;
+               const finalImg = new Image();
+               finalImg.src = dataURL;
+         finalImg.style.width = '220px';   // Preview chhota
+         finalImg.style.height = '220px';
+         
+               finalImg.style.borderRadius = '12px';
+               const qwrap = document.getElementById('qrcode-wrap');
+               qwrap.innerHTML = '';
+               qwrap.appendChild(finalImg);
+         
+               document.getElementById('card').style.display = 'block';
+               document.getElementById('dlWrap').style.display = 'flex';
+             };
+             // set source (this may be base64 or remote converted)
+             logoImg.src = qrLogoURL || DEFAULT_IMG;
+           }
+         
+           // Download: use html2canvas after ensuring preview contains only data URLs or same-origin images
+         function downloadPNG(){
+           const card = document.getElementById('card');
+           setTimeout(()=>{
+             html2canvas(card, {
+               useCORS: true,
+               backgroundColor: "#ffffff",
+               scale: 6,   // 🔥 4x scale = Ultra HD (double se bhi jyada sharp)
+               windowWidth: card.scrollWidth * 3,   // double width
+               windowHeight: card.scrollHeight * 3  // double height
+             }).then(canvas=>{
+               const link = document.createElement('a');
+               link.download = 'upi_qr_gpay.png';
+               link.href = canvas.toDataURL('image/png'); 
+               link.click();
+             }).catch(err=>{
+               alert('Export failed. Error: ' + err);
+             });
+           },120);
+         }
+         
+         
+         
+         
+           // Download only the QR (uses the lastQrDataURL)
+           function downloadOnlyQR(){
+             if(!lastQrDataURL){ alert('Generate QR first'); return; }
+             const link = document.createElement('a');
+             link.download = 'upi_qr_only.png';
+             link.href = lastQrDataURL;
+             link.click();
+           }
+           
+      </script>
+      <script>
+         if ("serviceWorker" in navigator) {
+           navigator.serviceWorker.register("sw.js")
+             .then(() => console.log("Service Worker Registered"))
+             .catch(err => console.log("SW registration failed:", err));
+         }
+      </script>
+   </body>
+</html>
